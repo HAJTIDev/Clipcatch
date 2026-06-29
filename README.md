@@ -40,7 +40,7 @@ The installer auto-detects your distro and uses the right package manager. It al
 ## Install
 
 ```bash
-git clone https://github.com/Cloodowy/clipcatch
+git clone https://github.com/HAJTIDev/clipcatch
 cd clipcatch
 chmod +x install.sh
 ./install.sh

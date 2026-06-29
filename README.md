@@ -1,6 +1,6 @@
 # ClipCatch 🎬
 
-A lightweight system tray app for Fedora that saves gameplay clips using OBS's replay buffer.  
+A lightweight system tray app for Linux that saves gameplay clips using OBS's replay buffer.  
 Think Shadowplay/Medal but free, open, and Linux-native.
 
 ## How it works
@@ -8,26 +8,51 @@ Think Shadowplay/Medal but free, open, and Linux-native.
 ClipCatch connects to OBS via WebSocket and controls the **replay buffer** — OBS keeps the last N seconds of your screen recorded in memory. When you press the hotkey, it tells OBS to save those seconds as a clip file.
 
 ```
-[Your screen] → [OBS replay buffer (last 30s)] → [Ctrl+Shift+S] → [clip saved to ~/Videos/Clips]
+[Your screen] → [OBS replay buffer (last 30s)] → [Alt+S] → [clip saved to ~/Videos/Clips]
 ```
+
+---
+
+## Distro support
+
+| Distro | Status | Package manager used |
+|--------|--------|----------------------|
+| Fedora / RHEL | ✅ | `dnf` |
+| Ubuntu / Debian / Mint | ✅ | `apt` |
+| Arch / Manjaro / EndeavourOS | ✅ | `pacman` |
+| openSUSE | ✅ | `zypper` |
+| NixOS | ⚠️ | manual (see below) |
+| Other | ⚠️ | manual |
+
+The installer auto-detects your distro and uses the right package manager. It also handles native, Flatpak, and Snap installs of OBS automatically.
 
 ---
 
 ## Requirements
 
-- **OBS Studio** (`sudo dnf install obs-studio`)
-- **Python 3.10+** (already on Fedora)
-- `pystray`, `pynput`, `Pillow` (installed by install.sh)
-- `libnotify` for desktop notifications (`sudo dnf install libnotify`)
+- **Python 3.10+**
+- **OBS Studio** (native, Flatpak, or Snap — all supported)
+- `pystray`, `pynput`, `Pillow` — installed automatically by `install.sh`
+- `libnotify` — installed automatically for desktop notifications
 
 ---
 
 ## Install
 
 ```bash
+git clone https://github.com/Cloodowy/clipcatch
+cd clipcatch
 chmod +x install.sh
 ./install.sh
 ```
+
+The installer will:
+- detect your distro and install system dependencies
+- install Python packages via pip
+- detect whether OBS is native / Flatpak / Snap
+- set up a `clipcatch` command in `~/.local/bin`
+- add ClipCatch to autostart
+- ask if you want to be added to the `input` group (needed for Wayland hotkeys)
 
 ---
 
@@ -37,7 +62,7 @@ chmod +x install.sh
 2. **Tools → WebSocket Server Settings**
    - ✅ Enable WebSocket Server
    - Port: `4455`
-   - Set a password (optional)
+   - Set a password (optional but recommended)
 3. **Settings → Output → Replay Buffer**
    - ✅ Enable Replay Buffer
    - Maximum Replay Time: `30` seconds (or however long you want)
@@ -48,7 +73,7 @@ chmod +x install.sh
 
 ## Config
 
-Config file lives at `~/.config/clipcatch/config.json`:
+Config file lives at `~/.config/clipcatch/config.json` and is created automatically on first run:
 
 ```json
 {
@@ -68,57 +93,76 @@ Config file lives at `~/.config/clipcatch/config.json`:
 | `obs_password` | WebSocket password (leave `""` if none set) |
 | `clips_dir` | Where OBS saves clips (must match OBS output path) |
 | `replay_duration` | Reminder only — set actual duration in OBS |
-| `hotkey` | pynput format: `<ctrl>+<shift>+s`, `<alt>+s`, `<f9>`, etc. |
+| `hotkey` | pynput format: `<alt>+s`, `<ctrl>+<shift>+s`, `<f9>`, etc. |
 | `auto_start_obs` | If `true`, launches OBS automatically on startup |
-| `obs_path` | Path to OBS binary |
+| `obs_path` | Path to OBS binary (auto-detected by installer) |
+
+> **Flatpak OBS:** the installer sets `obs_path` to `flatpak run com.obsproject.Studio` automatically.
 
 ---
 
-## Tray Menu
+## Tray menu
 
 | Option | What it does |
 |--------|-------------|
 | 💾 Save Clip | Save the last N seconds right now |
-| Connect to OBS | Connect to running OBS instance |
+| Connect to OBS | Connect to a running OBS instance |
 | Disconnect | Stop controlling OBS |
 | Launch OBS + Connect | Start OBS then auto-connect |
-| ⚙ Open Config | Open config.json in your editor |
+| ⚙ Open Config | Open config.json in your default editor |
 | Quit | Exit ClipCatch |
 
 ---
 
-## Tray Icon Colors
+## Tray icon
 
 | Color | Meaning |
 |-------|---------|
-| 🔴 Red (pause icon) | Not connected to OBS |
-| 🟢 Green (dot icon) | Connected and buffering |
+| 🔴 Red, pause bars | Not connected to OBS |
+| 🟢 Green, white dot | Connected and buffering |
 
 ---
 
-## Hotkey note (Wayland/KDE)
+## Hotkeys on Wayland
 
-On KDE Wayland, global hotkeys via `pynput` require your user to be in the `input` group:
+Global hotkeys via `pynput` require your user to be in the `input` group. The installer will ask you about this automatically, or you can do it manually:
 
 ```bash
 sudo usermod -aG input $USER
-# then log out and back in
+# log out and back in for it to take effect
 ```
 
-Alternatively you can set up the hotkey in **KDE System Settings → Shortcuts → Custom Shortcuts** and point it to:
-```bash
-clipcatch --save
-```
-(future feature)
+**Alternative (no input group needed):** set the hotkey in your desktop environment instead:
+- **KDE:** System Settings → Shortcuts → Custom Shortcuts → add command `clipcatch`
+- **GNOME:** Settings → Keyboard → Custom Shortcuts → add command `clipcatch`
+
+> On X11 global hotkeys work without any extra setup.
 
 ---
 
-## Running without OBS visible
+## Running OBS in the background
 
-Launch OBS minimized to tray with replay buffer auto-started:
+Launch OBS minimized to tray with the replay buffer already started:
 
 ```bash
 obs --minimize-to-tray --startreplaybuffer
 ```
 
-Or set `"auto_start_obs": true` in the config and ClipCatch will do it for you.
+Or set `"auto_start_obs": true` in the config and ClipCatch will handle it automatically on startup.
+
+---
+
+## NixOS
+
+The installer skips package management on NixOS. Set up a shell with the required packages first:
+
+```bash
+nix-shell -p obs-studio libnotify python3 python3Packages.pip
+./install.sh
+```
+
+---
+
+## License
+
+MIT

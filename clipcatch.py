@@ -288,6 +288,10 @@ class ClipCatch:
             status = result.get("requestStatus", {})
             if status.get("result", False):
                 self._notify("ClipCatch ✂️", "Clip saved!")
+                try:
+                    self._play_sound()
+                except Exception:
+                    pass
             else:
                 err = status.get("comment", "Unknown error")
                 self._notify("ClipCatch", f"Save failed: {err}")
@@ -340,6 +344,38 @@ class ClipCatch:
                 stderr=subprocess.DEVNULL,
             )
         except FileNotFoundError:
+            pass
+
+    def _play_sound(self):
+        """Play the bundled MP3 notification sound (non-blocking).
+
+        Tries a few common CLI players first, then falls back to `playsound` if
+        available. Silent if no player is installed or the file is missing.
+        """
+        mp3 = Path(__file__).parent / "rizz-sound-effect.mp3"
+        if not mp3.exists():
+            return
+
+        players = [
+            ["mpv", "--no-video", "--really-quiet", str(mp3)],
+            ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", str(mp3)],
+            ["mpg123", "-q", str(mp3)],
+            ["vlc", "-I", "dummy", "--play-and-exit", str(mp3)],
+        ]
+
+        for cmd in players:
+            try:
+                subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return
+            except FileNotFoundError:
+                continue
+
+        # Fallback to Python playback if `playsound` is installed
+        try:
+            from playsound import playsound
+
+            threading.Thread(target=playsound, args=(str(mp3),), daemon=True).start()
+        except Exception:
             pass
 
     # ── Tray icon ───────────────────────────────────────────────────────────
